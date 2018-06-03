@@ -13,6 +13,9 @@ const ModuleScopePlugin = require('react-dev-utils/ModuleScopePlugin');
 const paths = require('./paths');
 const getClientEnvironment = require('./env');
 
+// damujiangr: analyzer
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 // Webpack uses `publicPath` to determine where the app is being served from.
 // It requires a trailing slash, or the file assets will get an incorrect path.
 const publicPath = paths.servedPath;
@@ -56,7 +59,10 @@ module.exports = {
   // You can exclude the *.map files from the build during deployment.
   devtool: shouldUseSourceMap ? 'source-map' : false,
   // In production, we only want to load the polyfills and the app code.
-  entry: [require.resolve('./polyfills'), paths.appIndexJs],
+  entry: {
+    vendor: ['preact', 'preact-compat', 'preact-router'],
+    main:[require.resolve('./polyfills'), paths.appIndexJs]
+  },
   output: {
     // The build folder.
     path: paths.appBuild,
@@ -94,6 +100,9 @@ module.exports = {
       // Support React Native Web
       // https://www.smashingmagazine.com/2016/08/a-glimpse-into-the-future-with-react-native-for-web/
       'react-native': 'react-native-web',
+      // damujiangr: Preact-compat aliases
+      'react': 'preact-compat',
+      'react-dom': 'preact-compat',
     },
     plugins: [
       // Prevents users from importing files from outside of src/ (or node_modules/).
@@ -271,6 +280,8 @@ module.exports = {
         // Pending further investigation:
         // https://github.com/mishoo/UglifyJS2/issues/2011
         comparisons: false,
+        // damujiangr: drop console
+        drop_console: true,
       },
       mangle: {
         safari10: true,
@@ -282,6 +293,16 @@ module.exports = {
         ascii_only: true,
       },
       sourceMap: shouldUseSourceMap,
+    }),
+    // damujiangr: common chunk
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'vendor',
+      minChunks: Infinity,// (with more entries, this ensures that no other module goes into the vendor chunk)
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'main',
+      children: true,// If `true` all children of the commons chunk are selected
+      minChunks: 2,// The number must be greater than or equal 2 and lower than or equal to the number of chunks.
     }),
     // Note: this won't work without ExtractTextPlugin.extract(..) in `loaders`.
     new ExtractTextPlugin({
@@ -329,6 +350,8 @@ module.exports = {
     // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
     // You can remove this if you don't use Moment.js:
     new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    // damujiangr: bundle analysis
+    new BundleAnalyzerPlugin(),
   ],
   // Some libraries import Node modules but don't use them in the browser.
   // Tell Webpack to provide empty mocks for them so importing them works.
